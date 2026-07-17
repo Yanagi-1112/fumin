@@ -1,15 +1,22 @@
 import Cocoa
 import ServiceManagement
+import IOKit
 
 // Fumin — メニューバー常駐のトグルアプリ。
 // クリックするたびに「フタを閉じてもスリープしないモード」⇄「通常モード」を切り替える。
-// 仕組み: ON で `sudo -n pmset -a disablesleep 1`（フタ閉じスリープ無効）＋ caffeinate（画面/アイドル抑止）。
+// 仕組み: ON で `sudo -n pmset -a disablesleep 1`（フタ閉じスリープ無効）＋ caffeinate（アイドル抑止）。
 // OFF / 終了 / 起動時 で必ず disablesleep 0 に戻すので「永久にスリープできない」事故を防ぐ。
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var caffeinate: Process?
     var isOn = false
+
+    // ON中にフタが閉じたら画面だけ消す（クラムシェルで外部モニタを暗くする用）
+    var autoBlank: Bool {
+        get { UserDefaults.standard.bool(forKey: "autoBlankOnLidClose") }
+        set { UserDefaults.standard.set(newValue, forKey: "autoBlankOnLidClose") }
+    }
 
     // pmset を許可するための sudoers 1行（未設定時に案内で使う）
     var installCmd: String {
@@ -29,7 +36,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         updateUI()
+
+        // フタ閉じ検出はイベント通知が無いのでポーリング（2秒間隔・guardのみなので実質ゼロ負荷）
+        Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.lidTick() }
     }
+
+    // MARK: - 画面だけオフ
+
+    // フタ閉じ検出: IOPMrootDomain の AppleClamshellState（true = 閉）
+    func lidClosed() -> Bool {
+        let root = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPMrootDomain"))
+        guard root != 0 else { return false }
+        defer { IOObjectRelease(root) }
+        let p = IORegistryEntryCreateCFProperty(root, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0)
+        return (p?.takeRetainedValue() as? Bool) ?? false
+    }
+
+    func lidTick() {
+        guard isOn, autoBlank, lidClosed(),
+              CGDisplayIsAsleep(CGMainDisplayID()) == 0 else { return } // 既に消えていれば何もしない
+        blankDisplays()
+    }
+
+    // 画面だけスリープ（root不要）。disablesleep 中なら本体は動き続ける。
+    // キーボード・マウスに触れると画面は復帰する（macOSの仕様）。
+    @objc func blankDisplays() {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+        p.arguments = ["displaysleepnow"]
+        try? p.run()
+    }
+
+    @objc func toggleAutoBlank() { autoBlank.toggle() }
 
     // 左クリック = トグル / 右クリック = メニュー
     @objc func handleClick(_ sender: Any?) {
@@ -47,7 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard runPmset(disable: true) else { showSudoersAlert(); return } // 権限が無ければ案内して中止
         let c = Process()
         c.executableURL = URL(fileURLWithPath: "/usr/bin/caffeinate")
-        c.arguments = ["-dimsu"] // 画面/アイドル/ディスク/システム も抑止
+        c.arguments = ["-imsu"] // アイドル/ディスク/システム抑止（-d は付けない: 画面は消えてよい）
         try? c.run()
         caffeinate = c
         isOn = true
@@ -91,6 +129,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
+        menu.addItem(.separator())
+
+        let blank = NSMenuItem(title: "画面をすぐ消す", action: #selector(blankDisplays), keyEquivalent: "")
+        blank.target = self
+        menu.addItem(blank)
+
+        let auto = NSMenuItem(title: "フタを閉じたら画面も消す（ON中のみ）", action: #selector(toggleAutoBlank), keyEquivalent: "")
+        auto.target = self
+        auto.state = autoBlank ? .on : .off
+        menu.addItem(auto)
         menu.addItem(.separator())
 
         let login = NSMenuItem(title: "ログイン時に自動起動", action: #selector(toggleLogin), keyEquivalent: "")
