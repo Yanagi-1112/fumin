@@ -1,9 +1,9 @@
 #!/bin/bash
-# LidAwake.app をビルドして ~/Applications に配置する。再実行OK。
+# Fumin.app をビルドして ~/Applications に配置する。再実行OK。
 set -euo pipefail
 
 SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP="$HOME/Applications/LidAwake.app"
+APP="$HOME/Applications/Fumin.app"
 MACOS="$APP/Contents/MacOS"
 RES="$APP/Contents/Resources"
 
@@ -17,10 +17,10 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>LidAwake</string>
-  <key>CFBundleDisplayName</key><string>LidAwake</string>
-  <key>CFBundleIdentifier</key><string>com.yanagi.lidawake</string>
-  <key>CFBundleExecutable</key><string>LidAwake</string>
+  <key>CFBundleName</key><string>Fumin</string>
+  <key>CFBundleDisplayName</key><string>Fumin</string>
+  <key>CFBundleIdentifier</key><string>com.yanagi.fumin</string>
+  <key>CFBundleExecutable</key><string>Fumin</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleVersion</key><string>1</string>
@@ -35,10 +35,10 @@ PLIST
 echo "▶ Swift コンパイル"
 swiftc -O -swift-version 5 \
   -framework Cocoa -framework ServiceManagement \
-  -o "$MACOS/LidAwake" "$SRC_DIR/LidAwake.swift"
+  -o "$MACOS/Fumin" "$SRC_DIR/Fumin.swift"
 
 echo "▶ アドホック署名（ログイン項目登録に必要）"
-codesign --force --sign - --identifier com.yanagi.lidawake "$APP"
+codesign --force --sign - --identifier com.yanagi.fumin "$APP"
 
 echo "✅ 完成: $APP"
 echo "   起動するには: open \"$APP\""

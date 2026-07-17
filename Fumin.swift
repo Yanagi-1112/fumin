@@ -1,7 +1,7 @@
 import Cocoa
 import ServiceManagement
 
-// LidAwake — メニューバー常駐のトグルアプリ。
+// Fumin — メニューバー常駐のトグルアプリ。
 // クリックするたびに「フタを閉じてもスリープしないモード」⇄「通常モード」を切り替える。
 // 仕組み: ON で `sudo -n pmset -a disablesleep 1`（フタ閉じスリープ無効）＋ caffeinate（画面/アイドル抑止）。
 // OFF / 終了 / 起動時 で必ず disablesleep 0 に戻すので「永久にスリープできない」事故を防ぐ。
@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // pmset を許可するための sudoers 1行（未設定時に案内で使う）
     var installCmd: String {
-        "echo '\(NSUserName()) ALL=(root) NOPASSWD: /usr/bin/pmset' | sudo tee /etc/sudoers.d/lidawake >/dev/null && sudo chmod 440 /etc/sudoers.d/lidawake"
+        "echo '\(NSUserName()) ALL=(root) NOPASSWD: /usr/bin/pmset' | sudo tee /etc/sudoers.d/fumin >/dev/null && sudo chmod 440 /etc/sudoers.d/fumin"
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -99,7 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(login)
         menu.addItem(.separator())
 
-        let quit = NSMenuItem(title: "LidAwake を終了", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Fumin を終了", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
 
@@ -116,7 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try SMAppService.mainApp.register()
             }
         } catch {
-            NSLog("LidAwake login toggle error: \(error)")
+            NSLog("Fumin login toggle error: \(error)")
         }
     }
 
