@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP="$HOME/Applications/Fumin.app"
+APP="/Applications/Fumin.app"
 MACOS="$APP/Contents/MacOS"
 RES="$APP/Contents/Resources"
 
@@ -32,10 +32,15 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-echo "▶ Swift コンパイル"
-swiftc -O -swift-version 5 \
+echo "▶ Swift コンパイル（ユニバーサル: Apple Silicon + Intel）"
+swiftc -O -swift-version 5 -target arm64-apple-macos13 \
   -framework Cocoa -framework ServiceManagement -framework IOKit \
-  -o "$MACOS/Fumin" "$SRC_DIR/Fumin.swift"
+  -o "$MACOS/Fumin-arm64" "$SRC_DIR/Fumin.swift"
+swiftc -O -swift-version 5 -target x86_64-apple-macos13 \
+  -framework Cocoa -framework ServiceManagement -framework IOKit \
+  -o "$MACOS/Fumin-x86_64" "$SRC_DIR/Fumin.swift"
+lipo -create -output "$MACOS/Fumin" "$MACOS/Fumin-arm64" "$MACOS/Fumin-x86_64"
+rm -f "$MACOS/Fumin-arm64" "$MACOS/Fumin-x86_64"
 
 echo "▶ アドホック署名（ログイン項目登録に必要）"
 codesign --force --sign - --identifier com.yanagi.fumin "$APP"
