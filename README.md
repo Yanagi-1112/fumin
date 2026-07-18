@@ -28,6 +28,8 @@ Fuminは、この「フタを閉じたら寝ちゃう」をOFFにできるスイ
 
 「コーヒーを飲んで起きてる☕」と覚えてください。
 
+<img src="docs/images/menubar-states.png" width="540" alt="メニューバーの2つの状態（図）">
+
 ## インストール（ダウンロードするだけ）
 
 1. [**Releasesページ**](https://github.com/Yanagi-1112/fumin/releases/latest)を開き、`Fumin.zip` をダウンロード
@@ -65,6 +67,8 @@ echo "$(whoami) ALL=(root) NOPASSWD: /usr/bin/pmset" | sudo tee /etc/sudoers.d/f
 
 - **左クリック** … ON/OFFをトグル（🌙⇄🟠）
 - **右クリック**（またはControl+クリック）… メニュー
+
+<img src="docs/images/menu.png" width="380" alt="右クリックメニュー（図）">
 
 メニューでできること:
 
