@@ -85,7 +85,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard runPmset(disable: true) else { showSudoersAlert(); return } // 権限が無ければ案内して中止
         let c = Process()
         c.executableURL = URL(fileURLWithPath: "/usr/bin/caffeinate")
-        c.arguments = ["-imsu"] // アイドル/ディスク/システム抑止（-d は付けない: 画面は消えてよい）
+        // -w 自PID: Fumin がクラッシュ等どんな死に方をしても caffeinate が道連れで終了し、孤児化してスリープ禁止が残らない
+        c.arguments = ["-imsu", "-w", String(ProcessInfo.processInfo.processIdentifier)]
         try? c.run()
         caffeinate = c
         isOn = true
@@ -192,7 +193,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        if isOn { _ = runPmset(disable: false) } // 念のための二重安全
+        if isOn {
+            caffeinate?.terminate()
+            _ = runPmset(disable: false) // 念のための二重安全
+        }
     }
 }
 
