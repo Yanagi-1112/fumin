@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var caffeinate: Process?
     var isOn = false
+    var appearanceObservation: NSKeyValueObservation? // メニューバーの明暗切替の監視（保持しないと解除される）
 
     // ON中にフタが閉じたら画面だけ消す（クラムシェルで外部モニタを暗くする用）
     var autoBlank: Bool {
@@ -36,6 +37,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         updateUI()
+
+        // メニューバーの明暗が変わったら（ダークモード切替・壁紙変更など）アイコンの色を塗り直す。
+        // ON のカップは明暗ごとに色を変えているため、これが無いと切替後に古い色のまま残る。
+        appearanceObservation = statusItem.button?.observe(\.effectiveAppearance) { [weak self] _, _ in
+            DispatchQueue.main.async { self?.updateUI() }
+        }
 
         // フタ閉じ検出はイベント通知が無いのでポーリング（2秒間隔・guardのみなので実質ゼロ負荷）
         Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.lidTick() }
@@ -115,10 +122,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func updateUI() {
         guard let button = statusItem.button else { return }
         let symbol = isOn ? "cup.and.saucer.fill" : "moon.zzz"
-        let img = NSImage(systemSymbolName: symbol, accessibilityDescription: isOn ? "スリープ無効中" : "通常")
-        img?.isTemplate = true
+        var img = NSImage(systemSymbolName: symbol, accessibilityDescription: isOn ? "スリープ無効中" : "通常")
+        if isOn {
+            // ON のカップは「自前の色で塗った画像」として出す。
+            // 以前はテンプレート画像＋contentTintColor（メニューバー任せの着色）だったが、
+            // ダークなメニューバーでは色が背景に混ざってくすみ、見づらかった。
+            // テンプレートをやめると指定した色がそのまま不透明で描かれる。
+            // 色はメニューバーの明暗に合わせて変える（暗い背景=明るい琥珀色 / 明るい背景=濃いオレンジ）。
+            // 注意: メニューバーの明暗はシステムのダークモード設定ではなく壁紙で決まることがあるので、
+            // ボタン自身の effectiveAppearance を見る。
+            let dark = button.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let color = dark ? NSColor(srgbRed: 1.00, green: 0.70, blue: 0.20, alpha: 1)
+                             : NSColor(srgbRed: 0.85, green: 0.40, blue: 0.00, alpha: 1)
+            img = img?.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [color]))
+            img?.isTemplate = false
+        } else {
+            img?.isTemplate = true // OFF の月は従来どおりメニューバー標準の色（白/黒）に任せる
+        }
         button.image = img
-        button.contentTintColor = isOn ? .systemOrange : nil // ON はオレンジで一目瞭然
+        button.contentTintColor = nil
         button.toolTip = isOn ? "フタ閉じスリープ: 無効中（クリックで解除）"
                               : "通常モード（クリックで無効化）"
     }
